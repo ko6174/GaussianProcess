@@ -61,12 +61,12 @@ class MOGPR_indep:
 
     def predict(self, X, diag=True):
         """
-        Xにおける予測平均, 予測分散の計算.
+        Xにおける予測平均, 予測分散の計算
 
         Parameters
         ----------
         X : numpy.ndarray
-            入力点.
+            入力点
         diag : bool, default True
             共分散行列の対角成分のみを計算するかどうか
 
@@ -99,26 +99,25 @@ class MOGPR_indep:
 
     def sampling(self, X, n_samples=1):
         """
-        関数のサンプリング.
+        関数のサンプリング
 
         Parameters
         ----------
         X : numpy.ndarray
-            入力点.
-        
+            入力点
         n_samples : int, default 1
-            サンプル数.
+            サンプル数
 
         Returns
         -------
         samples : numpy.ndarray
-            Xにおけるサンプル値.
+            Xにおけるサンプル値
         """
         n, _ = X.shape
         samples = np.zeros(shape=[self.n_func, n_samples, n])
 
         for i in range(self.n_func):
-            sample = self.so_gp[i].sampling(X)
+            sample = self.so_gp[i].sampling(X, n_samples=n_samples)
             samples[i] = sample
         
         return samples

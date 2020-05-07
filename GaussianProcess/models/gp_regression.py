@@ -105,41 +105,38 @@ class GPRegression(MyModel):
         var : np.ndarray
             予測分散.
         """
-        Linvy = forward(self.Lk, self.y - self.mean(self.x))
-        LinvK = forward(self.Lk, self.kernel(self.x, X))
+        y, y_mean, y_std = self.normalize(self.y - self.mean(self.x))
 
-        mean = self.mean(X) + np.dot(np.transpose(LinvK), Linvy)
+        K_xX = self.kernel(self.x, X)
+        alpha = np.transpose(dot_matinv_vec(self.Lk, K_xX))
+        y_mean = alpha.dot(y_mean * np.ones(shape=[self.n_points,1]))
+
+        mean = self.mean(X) + alpha.dot(y) * y_std + y_mean
         if diag:
-            var = self.kernel(X, X, diag=diag) - np.sum(LinvK * LinvK, axis=0)
+            var = self.kernel(X, X, diag=diag) - np.sum(alpha.transpose() * K_xX, axis=0)
             var = np.reshape(var, [-1,1])
         else:
-            var = self.kernel(X, X, diag=diag) - np.dot(np.transpose(LinvK), LinvK)
+            var = self.kernel(X, X, diag=diag) - alpha.dot(K_xX)
 
         return mean, var
 
     def sampling(self, X, n_samples=1):
         """
-        関数のサンプリング.
+        関数のサンプリング
 
         Parameters
         ----------
         X : numpy.ndarray
-            入力点.
-        
+            入力点
         n_samples : int, default 1
-            サンプル数.
+            サンプル数
 
         Returns
         -------
         samples : numpy.ndarray
-            Xにおけるサンプル値.
+            Xにおけるサンプル値
         """
-        Linvy = forward(self.Lk, self.y - self.mean(self.x))
-        LinvK = forward(self.Lk, self.kernel(self.x, X))
-        
-        mean = self.mean(X) + np.dot(np.transpose(LinvK), Linvy)
-        Cov = self.kernel(X, X) - np.dot(np.transpose(LinvK), LinvK)
-        
+        mean, Cov = self.predict(X, diag=False)
         return self.rand.multivariate_normal(mean[:,0], Cov, size=n_samples)
 
     def optimize(self, optim=None):
@@ -161,6 +158,29 @@ class GPRegression(MyModel):
         result = optim.minimize(self)
         self.model_update()
         return result
+
+    def normalize(self, y):
+        """
+        yを平均0, 分散1に標準化.
+
+        Parameters
+        ----------
+        y : numpy.ndarray
+            標準化したい変数
+
+        Returns
+        -------
+        ret : numpy.ndarray
+            yを標準化したもの
+        mean : numpy.ndarray
+            yの平均
+        std : numpy.ndarray
+            yの標準偏差
+        """
+        mean = np.mean(y)
+        std = np.std(y)
+        ret = (y - mean) / (std + 1e-7)
+        return ret, mean, std
 
     def model_update(self):
         """
@@ -187,14 +207,15 @@ class GPRegression(MyModel):
         -log_likelihood : numpy.ndarray
             対数周辺尤度に-1を掛けた値.
         """
+        n, _ = X.shape
         l_mean = self.mean.n_params
         l_kern = self.kernel.n_params
         Cov = self.kernel(X, X, params[l_mean:l_mean+l_kern]) + self.noise(X, params=params[l_mean+l_kern:])
         Lk = np.linalg.cholesky(Cov)
-        y = Y - self.mean(X, params[:len(self.mean.params)])
+        y, _, _ = self.normalize(Y - self.mean(X, params[:l_mean]))
         Linvy = forward(Lk, y)
 
-        log_likelihood = -2*np.sum(np.log(np.diag(Lk))) - np.sum(Linvy**2)
+        log_likelihood = -np.sum(np.log(np.diag(Lk))) - 0.5*np.sum(Linvy**2) - 0.5*n*np.log(2*np.pi)
 
         return -log_likelihood
 
@@ -221,7 +242,7 @@ class GPRegression(MyModel):
 
         Cov = self.kernel(X, X, params[l_mean:l_mean+l_kern]) + self.noise(X, params=params[l_mean+l_kern:])
         Lk = np.linalg.cholesky(Cov)
-        y = Y - self.mean(X, params[:l_mean])
+        y, _, _ = self.normalize(Y - self.mean(X, params[:l_mean]))
 
         Kinvy = dot_matinv_vec(Lk, y)
 

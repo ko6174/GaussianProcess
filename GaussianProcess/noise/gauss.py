@@ -26,7 +26,7 @@ class Gauss(MyNoise):
         ln_variance : float, default 0.
             log(variance)
         """
-        params = ParamList([Param(ln_variance, "ln_variance", -1*np.log(10), 1*np.log(10))])
+        params = ParamList([Param(ln_variance, "ln_variance", -4*np.log(10), 1*np.log(10))])
         name = "Gauss"
         super().__init__(params, name)
 
