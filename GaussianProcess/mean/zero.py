@@ -24,7 +24,7 @@ class Zero(MyMean):
 
     def getMean(self, X, params=None):
         n, _ = X.shape
-        return np.zero(shape=[n,1])
+        return np.zeros(shape=[n,1])
     
     def paramsGrad(self, X, params=None):
         pass
